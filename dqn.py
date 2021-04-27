@@ -1,9 +1,9 @@
 import random
 
-import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -51,14 +51,24 @@ class DQN(nn.Module):
         self.relu = nn.ReLU()
         self.flatten = nn.Flatten()
 
+        self.replay_memory_start_size = env_config['memory_size']
+        self.max_frames = 1
+
+        # Slopes and intercepts for exploration decrease
+        self.slope = -(self.eps_start - self.eps_end)/self.anneal_length
+        self.intercept = self.eps_start - self.slope
+        self.slope_2 = -(self.eps_end)/(self.max_frames -
+                                        self.anneal_length
+                                        )
+        self.intercept_2 = self.slope_2*self.max_frames
+
     def forward(self, x):
         """Runs the forward pass of the NN depending on architecture."""
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
-
         return x
 
-    def act(self, observation, exploit=False):
+    def act(self, observation, step_number, exploit=False):
         """Selects an action with an epsilon-greedy exploration strategy."""
         # TODO: Implement action selection using the Deep Q-network. This function
         #       takes an observation tensor and should return a tensor of actions.
@@ -66,7 +76,21 @@ class DQN(nn.Module):
         #       the input would be a [32, 4] tensor and the output a [32, 1] tensor.
         # TODO: Implement epsilon-greedy exploration.
 
-        raise NotImplmentedError
+        # TODO: use epsilon annealing
+        if exploit:
+            eps = 0
+        elif step_number < self.replay_memory_start_size:
+            eps = self.eps_start
+        elif step_number >= self.replay_memory_start_size and step_number < self.replay_memory_start_size + self.anneal_length:
+            eps = self.slope*step_number + self.intercept
+        elif step_number >= self.replay_memory_start_size + self.anneal_length:
+            eps = self.slope_2*step_number + self.intercept_2
+
+        if random.random() < eps:
+            return torch.tensor([[random.randrange(self.n_actions)]], device=device, dtype=torch.long)
+        else:
+            return self(observation).max(1)[1].view(1, 1)
+
 
 def optimize(dqn, target_dqn, memory, optimizer):
     """This function samples a batch from the replay buffer and optimizes the Q-network."""
@@ -78,13 +102,27 @@ def optimize(dqn, target_dqn, memory, optimizer):
     #       four tensors in total: observations, actions, next observations and rewards.
     #       Remember to move them to GPU if it is available, e.g., by using Tensor.to(device).
     #       Note that special care is needed for terminal transitions!
+    batch = memory.sample(dqn.batch_size)
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                            batch[2])), device=device, dtype=torch.bool)
+    non_final_next_states = torch.cat([s for s in batch[2] if s is not None])
+
+    state_batch = torch.cat(batch[0])
+    action_batch = torch.cat(batch[1])
+    reward_batch = torch.cat(batch[3])
 
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
-    
+    q_values = dqn(state_batch).gather(1, action_batch)
+
     # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
-    
+    next_state_values = torch.zeros(dqn.batch_size, device=device)
+    next_state_values[non_final_mask] = target_dqn(
+        non_final_next_states).max(1)[0].squeeze().detach()
+    # Compute the expected Q values
+    q_value_targets = (next_state_values * dqn.gamma) + reward_batch
+
     # Compute loss.
     loss = F.mse_loss(q_values.squeeze(), q_value_targets)
 
