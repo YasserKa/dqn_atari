@@ -54,6 +54,9 @@ if __name__ == '__main__':
     # Used for eps annealing
     step_number = 0
 
+    # Used for the plot
+    all_means = []
+
     for episode in range(env_config['n_episodes']):
         done = False
 
@@ -95,6 +98,8 @@ if __name__ == '__main__':
             mean_return = evaluate_policy(
                 dqn, env, env_config, args, n_episodes=args.evaluation_episodes)
 
+            all_means.append(mean_return)
+
             print(
                 f'Episode {episode}/{env_config["n_episodes"]}: {mean_return}')
 
@@ -104,6 +109,8 @@ if __name__ == '__main__':
 
                 print('Best performance so far! Saving model.')
                 torch.save(dqn, f'models/{args.env}_best.pt')
+
+    print(all_means)
 
     # Close environment after training is completed.
     env.close()
