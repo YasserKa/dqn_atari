@@ -51,17 +51,6 @@ class DQN(nn.Module):
         self.relu = nn.ReLU()
         self.flatten = nn.Flatten()
 
-        self.replay_memory_start_size = env_config['memory_size']
-        self.max_frames = 1
-
-        # Slopes and intercepts for exploration decrease
-        self.slope = -(self.eps_start - self.eps_end)/self.anneal_length
-        self.intercept = self.eps_start - self.slope
-        self.slope_2 = -(self.eps_end)/(self.max_frames -
-                                        self.anneal_length
-                                        )
-        self.intercept_2 = self.slope_2*self.max_frames
-
     def forward(self, x):
         """Runs the forward pass of the NN depending on architecture."""
         x = self.relu(self.fc1(x))
@@ -76,12 +65,13 @@ class DQN(nn.Module):
         # input would be a [32, 4] tensor and the output a [32, 1] tensor.
         if exploit:
             eps = 0
-        elif step_number < self.replay_memory_start_size:
-            eps = self.eps_start
-        elif step_number >= self.replay_memory_start_size and step_number < self.replay_memory_start_size + self.anneal_length:
-            eps = self.slope*step_number + self.intercept
-        elif step_number >= self.replay_memory_start_size + self.anneal_length:
-            eps = self.slope_2*step_number + self.intercept_2
+        else:
+            if step_number < self.anneal_length:
+                eps = self.eps_start + \
+                    (self.eps_end - self.eps_start) * \
+                    (step_number / self.anneal_length)
+            else:
+                eps = self.eps_end
 
         if random.random() < eps:
             return torch.tensor([[random.randrange(self.n_actions)]], device=device, dtype=torch.long)
