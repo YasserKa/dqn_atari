@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     # Initialize deep Q-networks.
     dqn = DQN(env_config=env_config).to(device)
-    # TODO: Create and initialize target Q-network.
+    # Create and initialize target Q-network.
     target_dqn = DQN(env_config=env_config).to(device)
     target_dqn.load_state_dict(dqn.state_dict())
     target_dqn.eval()
@@ -60,8 +60,7 @@ if __name__ == '__main__':
         obs = preprocess(env.reset(), env=args.env).unsqueeze(0)
 
         while not done:
-            # TODO: Get action from DQN.
-            # print(obs)
+            # Get action from DQN.
             action = dqn.act(obs, step_number)
 
             # Act in the true environment.
@@ -78,17 +77,16 @@ if __name__ == '__main__':
             else:
                 next_obs = None
 
-            # TODO: Add the transition to the replay memory. Remember to convert
-            #       everything to PyTorch tensors!
+            # Add the transition to the replay memory
             memory.push(obs, action, next_obs, reward)
 
             obs = next_obs
 
-            # TODO: Run DQN.optimize() every env_config["train_frequency"] steps.
+            # Run DQN.optimize() every env_config["train_frequency"] steps.
             if step_number % env_config['train_frequency'] == 0:
                 optimize(dqn, target_dqn, memory, optimizer)
 
-            # TODO: Update the target network every env_config["target_update_frequency"] steps.
+            # Update the target network every env_config["target_update_frequency"] steps.
             if step_number % env_config['target_update_frequency'] == 0:
                 target_dqn.load_state_dict(dqn.state_dict())
 

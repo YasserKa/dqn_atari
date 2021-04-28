@@ -70,13 +70,10 @@ class DQN(nn.Module):
 
     def act(self, observation, step_number, exploit=False):
         """Selects an action with an epsilon-greedy exploration strategy."""
-        # TODO: Implement action selection using the Deep Q-network. This function
-        #       takes an observation tensor and should return a tensor of actions.
-        #       For example, if the state dimension is 4 and the batch size is 32,
-        #       the input would be a [32, 4] tensor and the output a [32, 1] tensor.
-        # TODO: Implement epsilon-greedy exploration.
-
-        # TODO: use epsilon annealing
+        # Implement action selection using the Deep Q-network. This function
+        # takes an observation tensor and should return a tensor of actions. For
+        # example, if the state dimension is 4 and the batch size is 32, the
+        # input would be a [32, 4] tensor and the output a [32, 1] tensor.
         if exploit:
             eps = 0
         elif step_number < self.replay_memory_start_size:
@@ -98,10 +95,11 @@ def optimize(dqn, target_dqn, memory, optimizer):
     if len(memory) < dqn.batch_size:
         return
 
-    # TODO: Sample a batch from the replay memory and concatenate so that there are
-    #       four tensors in total: observations, actions, next observations and rewards.
-    #       Remember to move them to GPU if it is available, e.g., by using Tensor.to(device).
-    #       Note that special care is needed for terminal transitions!
+    # Sample a batch from the replay memory and concatenate so that there are
+    # four tensors in total: observations, actions, next observations and
+    # rewards. Remember to move them to GPU if it is available, e.g., by using
+    # Tensor.to(device). Note that special care is needed for terminal
+    # transitions!
     batch = memory.sample(dqn.batch_size)
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                             batch[2])), device=device, dtype=torch.bool)
@@ -111,12 +109,12 @@ def optimize(dqn, target_dqn, memory, optimizer):
     action_batch = torch.cat(batch[1])
     reward_batch = torch.cat(batch[3])
 
-    # TODO: Compute the current estimates of the Q-values for each state-action
-    #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
-    #       corresponding to the chosen actions.
+    # Compute the current estimates of the Q-values for each state-action pair
+    # (s,a). Here, torch.gather() is useful for selecting the Q-values
+    # corresponding to the chosen actions.
     q_values = dqn(state_batch).gather(1, action_batch)
 
-    # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
+    # Compute the Q-value targets. Only do this for non-terminal transitions!
     next_state_values = torch.zeros(dqn.batch_size, device=device)
     next_state_values[non_final_mask] = target_dqn(
         non_final_next_states).max(1)[0].squeeze().detach()
