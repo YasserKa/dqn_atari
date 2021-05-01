@@ -60,25 +60,24 @@ if __name__ == '__main__':
     for episode in range(env_config['n_episodes']):
         done = False
 
-        obs = preprocess(env.reset(), env=args.env).unsqueeze(0)
+        obs = preprocess(env.reset(), env=args.env)
 
         while not done:
             # Get action from DQN.
             action = dqn.act(obs, step_number)
 
             # Act in the true environment.
-            next_obs, reward, done, info = env.step(action.item())
+            next_obs, reward, done, _ = env.step(action.item())
 
-            reward = torch.tensor([reward], device=device)
-            next_obs = torch.tensor(
-                next_obs, device=device, dtype=torch.float)
+            reward = preprocess(reward, env=args.env)
+
             step_number += 1
 
             # Preprocess incoming observation.
-            if not done:
-                next_obs = preprocess(next_obs, env=args.env).unsqueeze(0)
-            else:
+            if done:
                 next_obs = None
+            else:
+                next_obs = preprocess(next_obs, env=args.env)
 
             # Add the transition to the replay memory
             memory.push(obs, action, next_obs, reward)
