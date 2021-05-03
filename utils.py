@@ -9,8 +9,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def preprocess(obs, env):
     """Performs necessary observation preprocessing."""
-    if env in ['CartPole-v0']:
+    if env in ['CartPole-v0', 'Pong-v0']:
         return torch.tensor(obs, device=device).float().unsqueeze(0)
     else:
-        raise ValueError(
-            'Please add necessary observation preprocessing instructions to preprocess() in utils.py.')
+        pass

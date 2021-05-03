@@ -37,7 +37,8 @@ class DQN(nn.Module):
     def __init__(self, env_config):
         super(DQN, self).__init__()
 
-        # Save hyperparameters needed in the DQN class.
+        # Save hyper-parameters needed in the DQN class.
+        self.env_name = env_config["env_name"]
         self.batch_size = env_config["batch_size"]
         self.gamma = env_config["gamma"]
         self.eps_start = env_config["eps_start"]
@@ -45,14 +46,21 @@ class DQN(nn.Module):
         self.anneal_length = env_config["anneal_length"]
         self.n_actions = env_config["n_actions"]
 
-        self.fc1 = nn.Linear(4, 256)
-        self.fc2 = nn.Linear(256, self.n_actions)
+        self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4, padding=0)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0)
+        self.fc1 = nn.Linear(3136, 512)
+        self.fc2 = nn.Linear(512, self.n_actions)
 
         self.relu = nn.ReLU()
         self.flatten = nn.Flatten()
 
     def forward(self, x):
         """Runs the forward pass of the NN depending on architecture."""
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
+        x = self.flatten(x)
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -74,9 +82,13 @@ class DQN(nn.Module):
                 eps = self.eps_end
 
         if random.random() < eps:
-            return torch.tensor([[random.randrange(self.n_actions)]], device=device, dtype=torch.long)
+            # pick either 2 or 3 randomly
+            return torch.tensor([[random.randrange(2, self.n_actions+2)]], device=device, dtype=torch.long)
         else:
-            return self(observation).max(1)[1].view(1, 1)
+            # increment 2, to indicate the number of the action:
+            # index 0 -> action 2,
+            # index 1 -> action 3
+            return self(observation).max(1)[1].view(1, 1)+2
 
 
 def optimize(dqn, target_dqn, memory, optimizer):
@@ -96,7 +108,10 @@ def optimize(dqn, target_dqn, memory, optimizer):
     non_final_next_states = torch.cat([s for s in batch[2] if s is not None])
 
     state_batch = torch.cat(batch[0])
-    action_batch = torch.cat(batch[1])
+    # decrement 2, to indicate the index actions,
+    # action 2 -> index 0
+    # action 3 -> index 1
+    action_batch = torch.cat(batch[1])-2
     reward_batch = torch.cat(batch[3])
 
     # Compute the current estimates of the Q-values for each state-action pair
@@ -106,6 +121,7 @@ def optimize(dqn, target_dqn, memory, optimizer):
 
     # Compute the Q-value targets. Only do this for non-terminal transitions!
     next_state_values = torch.zeros(dqn.batch_size, device=device)
+
     next_state_values[non_final_mask] = target_dqn(
         non_final_next_states).max(1)[0].squeeze().detach()
     # Compute the expected Q values
