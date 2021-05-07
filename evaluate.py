@@ -2,6 +2,7 @@ import argparse
 import random
 
 import gym
+from gym.wrappers import AtariPreprocessing
 import torch
 import torch.nn as nn
 
@@ -11,7 +12,7 @@ from utils import preprocess
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', choices=['CartPole-v0'])
+parser.add_argument('--env', choices=['CartPole-v0', 'Pong-v0'])
 parser.add_argument('--path', type=str, help='Path to stored DQN model.')
 parser.add_argument('--n_eval_episodes', type=int, default=1,
                     help='Number of evaluation episodes.', nargs='?')
@@ -25,6 +26,7 @@ parser.set_defaults(save_video=False)
 # Hyperparameter configurations for different environments. See config.py.
 ENV_CONFIGS = {
     'CartPole-v0': config.CartPole,
+    'Pong-v0': config.Pong,
 }
 
 
@@ -34,6 +36,7 @@ def evaluate_policy(dqn, env, env_config, args, n_episodes, render=False, verbos
 
     for i in range(n_episodes):
         obs = preprocess(env.reset(), env=args.env)
+
         obs_stack = torch.cat(
             env_config["obs_stack_size"] * [obs]).unsqueeze(0).to(device)
 
@@ -68,6 +71,10 @@ if __name__ == '__main__':
 
     # Initialize environment and config
     env = gym.make(args.env)
+
+    # Preprocess the envionment if it's pong
+    env = AtariPreprocessing(env, screen_size=84, grayscale_obs=True,
+                             frame_skip=1, noop_max=30, scale_obs=True)
     env_config = ENV_CONFIGS[args.env]
 
     if args.save_video:
